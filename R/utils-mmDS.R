@@ -156,7 +156,7 @@
     # fit mixed models for ea. gene
     fits <- bplapply(seq_len(nrow(y)), function(i)
         .fit_lmer(cbind(u = y[i, ], cd), formula, coef, bayesian, REML, ddf),
-        BPPARAM = MulticoreParam(n_threads)) %>% 
+        BPPARAM = MulticoreParam(n_threads, progressbar=verbose)) %>% 
         set_names(rownames(y))
 
     if (verbose) message("Applying empirical Bayes moderation..")
@@ -176,41 +176,6 @@
         set_rownames(colnames(x))
 }
 
-# fits mixed models and returns fit information required for eBayes
-#' @importFrom blme blmer
-#' @importFrom lmerTest lmer contest
-#' @importFrom lme4 .makeCC lmerControl
-#' @importFrom purrr map set_names
-#' @importFrom stats residuals
-#' @importFrom utils getFromNamespace
-.fit_lmer <- function(df, formula, coef, bayesian, REML, ddf) {
-    # here we should do some handling of convergence/singularity
-    fun <- ifelse(bayesian, blmer, getFromNamespace("lmer", "lmerTest"))
-    mod <- tryCatch(fun(formula, df, REML, control = lmerControl(
-        check.conv.singular = .makeCC(action = "ignore", tol = 1e-4))),
-        error = function(e) e)
-    if (inherits(mod, "error")) mod
-
-    tryCatch({
-        coefs <- colnames(coef(mod)[[1]])
-        re <- cbind(coef(summary(mod)), p_val = NA_real_)
-        re[, "p_val"] <- ifelse(
-            "Pr(>|t|)" %in% colnames(re),
-            re[, "Pr(>|t|)"], NA_real_)
-        cs <- as.numeric(coefs == coef)
-        ct <- lmerTest::contest(mod, cs, ddf = ddf)
-        re[cs == 1, ncol(re)] <- ct[, ncol(ct)]
-        re <- re[, c(seq_len(3), ncol(re))]
-        split(re, col(re)) %>%
-            map(set_names, coefs) %>%
-            set_names(c("beta", "SE", "stat", "p_val")) %>% 
-            c(list(
-                Amean = mean(df$u),
-                sigma = sd(residuals(mod)),
-                df.residual = df.residual(mod)))
-    }, error = function(e) e)
-}
-
 
 #' @importFrom BiocParallel bplapply MulticoreParam
 #' @importFrom dplyr %>% bind_rows last
@@ -218,7 +183,7 @@
 #' @importFrom SingleCellExperiment counts
 #' @importFrom SummarizedExperiment assay
 #' @importFrom tibble add_column
-.mm_glmm <- function(x, coef, covs, n_threads, verbose=TRUE, moderate=TRUE, family=c("poisson","nbinom")){
+.mm_glmm <- function(x, coef, covs, n_threads, verbose=TRUE, moderate=FALSE, family=c("nbinom", "poisson")){
     family <- match.arg(family)
     cd <- .prep_cd(x, covs)
     y <- counts(x)
@@ -243,24 +208,10 @@
     
     # fit mixed model for ea. gene
     fits <- bplapply(seq_len(nrow(y)), function(i) {
-        if(moderate){
-            if(family=="nbinom"){
-                return(.fit_nbinom(df=data.frame(u=y[i, ], cd), formula, coef))
-            }else{
-                return(.fit_bglmer(df=data.frame(u=y[i, ], cd), formula, coef))
-            }
-        }else{
-            return(tryCatch({
-                if(family=="nbinom"){
-                    mod <- glmmTMB(formula, family=nbinom1, data=data.frame(u=y[i, ], cd), REML=FALSE)
-                    res <- coef(summary(mod))[[1]][coef,]
-                }else{
-                    mod <- bglmer(formula, family="poisson", data=data.frame(u=y[i, ], cd))
-                    res <- coef(summary(mod))[coef,]
-                }
-                res
-            }, error=function(e) rep(NA_real_, 4)))
+        if(family=="nbinom"){
+            return(.fit_nbinom(df=data.frame(u=y[i, ], cd), formula, coef, prepForModeration=moderate))
         }
+        return(.fit_bglmer(df=data.frame(u=y[i, ], cd), formula, coef, prepForModeration=moderate))
     }, BPPARAM = MulticoreParam(n_threads, progressbar=verbose)) %>% 
         set_names(rownames(y))
     
@@ -275,13 +226,13 @@
 }
 
 #' @import blme
-.mm_poisson <- function(x, coef, covs, n_threads, verbose=TRUE, moderate=TRUE){
-    .mm_glmm(x, coef, covs, n_threads, verbose=verbose, moderate=moderate, family="poisson")
+.mm_poisson <- function(x, coef, covs, n_threads, verbose=TRUE, ...){
+    .mm_glmm(x, coef, covs, n_threads, verbose=verbose, family="poisson", ...)
 }
 
 #' @import glmmTMB
-.mm_nbinom <- function(x, coef, covs, n_threads, verbose=TRUE, moderate=TRUE){
-    .mm_glmm(x, coef, covs, n_threads, verbose=verbose, moderate=moderate, family="poisson")
+.mm_nbinom <- function(x, coef, covs, n_threads, verbose=TRUE, ...){
+    .mm_glmm(x, coef, covs, n_threads, verbose=verbose, family="nbinom")
 }
 
 
@@ -338,15 +289,9 @@
     # fit mixed model for ea. gene which is below threshold in pseudobulk analysis
     fits <- bplapply(wg, function(i) {
         if(fam=="nbinom"){
-            return(tryCatch({
-                mod <- glmmTMB(formula, family=nbinom1, data=data.frame(u=y[i, ], cd), REML=FALSE)
-                coef(summary(mod))[[1]][coef,]
-            }, error=function(e) rep(NA_real_, 4)))
+            return(.fit_nbinom(data.frame(u=y[i, ], cd), formula, coef, prepForModeration=FALSE))
         }
-        tryCatch({
-            mod <- bglmer(formula, family="poisson", data=data.frame(u=y[i, ], cd))
-            coef(summary(mod))[coef,]
-        }, error=function(e) rep(NA_real_, 4))
+        .fit_bglmer(data.frame(u=y[i, ], cd), formula, coef, prepForModeration=FALSE)
     }, BPPARAM = MulticoreParam(n_threads, progressbar=verbose))
     
     res$glmm.estimate <- res$glmm.p_val <- NA_real_
@@ -362,89 +307,114 @@
 }
 
 
-
+# fits mixed models and returns fit information required for eBayes
+#' @importFrom blme blmer
+#' @importFrom lmerTest lmer contest
+#' @importFrom lme4 .makeCC lmerControl
+#' @importFrom purrr map set_names
+#' @importFrom stats residuals
+#' @importFrom utils getFromNamespace
+.fit_lmer <- function(df, formula, coef, bayesian, REML, ddf) {
+    # here we should do some handling of convergence/singularity
+    fun <- ifelse(bayesian, blmer, getFromNamespace("lmer", "lmerTest"))
+    mod <- tryCatch(fun(formula, df, REML, control = lmerControl(
+        check.conv.singular = .makeCC(action = "ignore", tol = 1e-4))),
+        error = function(e) e)
+    if (inherits(mod, "error")) mod
+    tryCatch(.prep_mmFit(mod, coef, ddf), error=function(e) NULL)
+}
 
 # fits negative binomial mixed models and returns fit information required for eBayes
 #' @import glmmTMB
 #' @importFrom purrr map set_names
 #' @importFrom stats residuals
-.fit_nbinom <- function(df, formula, coef){
+.fit_nbinom <- function(df, formula, coef, prepForModeration=FALSE){
     mod <- tryCatch({
-        glmmTMB(formula, family=nbinom1, data=df, REML=FALSE)
+        glmmTMB(formula, family=nbinom1, data=df)
     }, error=function(e){ print(e); return(NULL)})
-    if (is.null(mod)) return(mod)
-    
-    tryCatch({
-        coefs <- colnames(coef(mod)[[1]][[1]])
-        cs <- as.numeric(coefs == coef)
-        re <- coef(summary(mod))[[1]]
-        re <- split(re, col(re)) %>% 
-            map(set_names, coefs) %>% 
-            set_names(c("beta", "SE", "stat", "p_val"))
-        c(re, list(
-            Amean = mean(df$u),
-            sigma = sd(residuals(mod)), 
-            df.residual = df.residual(mod)))
-    }, error=function(e) NULL)
+    if(prepForModeration){
+        return(tryCatch(.prep_mmFit(mod, coef), error=function(e) NULL))
+    }
+    tryCatch(coef(summary(mod))[[1]][coef,], error=function(e) rep(NA_real_, 4))
 }
-
 
 # fits poisson mixed models and returns fit information required for eBayes
 #' @import blme
 #' @importFrom purrr map set_names
 #' @importFrom stats residuals
-.fit_bglmer <- function(df, formula, coef){
+.fit_bglmer <- function(df, formula, coef, prepForModeration=FALSE){
     mod <- tryCatch({
         bglmer(formula, family="poisson", data=df)
     }, error=function(e){ print(e); return(NULL)})
-    if (is.null(mod)) return(mod)
+    if(prepForModeration){
+        return(tryCatch(.prep_mmFit(mod, coef), error=function(e) NULL))
+    }
+    tryCatch(coef(summary(mod))[coef,], error=function(e) rep(NA_real_, 4))
+}
+
+# prepares a model fit for eBayes moderation
+.prep_mmFit <- function(mod, coef, ddf=NULL){
+    if(is(mod, "glmmTMB")){
+        co <- coef(mod)[[1]][[1]]
+    }else{
+        co <- coef(mod)[[1]]
+    }
+    beta <- as.matrix(co[1,coef])
     
-    tryCatch({
-        coefs <- colnames(coef(mod)[[1]])
-        cs <- as.numeric(coefs == coef)
-        re <- coef(summary(mod))
-        re <- split(re, col(re)) %>% 
-            map(set_names, coefs) %>% 
-            set_names(c("beta", "SE", "stat", "p_val"))
-        c(re, list(
-            Amean = mean(df$u),
-            sigma = sd(residuals(mod)), 
-            df.residual = df.residual(mod)))
-    }, error=function(e) NULL)
+    L <- matrix(as.numeric(colnames(co)==coef), ncol=1)
+    row.names(L) <- colnames(co)
+    
+    # lmer method and SE modified from variancePartition:::.eval_lmm  
+    if(is(mod, "lmerModLmerTest")){
+        test <- lmerTest::contest(mod, t(L), ddf = ddf)
+        ll <- list( df.residual=test[,"NumDF"], 
+                    stat=as.matrix(test[,"F value"]), p_val0=test[,"Pr(>F)"])
+    }else{
+        test <- coef(summary(mod))
+        if(is(mod, "glmmTMB")) test <- test[[1]]
+        ll <- list( df.residual=df.residual(mod),
+                    stat=as.matrix(test[coef,"z value"]), p_val0=test[coef,"Pr(>|z|)"])
+    }
+    if(is(mod, "lmerModLmerTest") && ddf=="Kenward-Roger") {
+        V = pbkrtest::vcovAdj.lmerMod(mod, 0)
+    }else{
+        V = vcov(mod)
+    }
+    SE <- as.matrix(sapply(1:ncol(L), FUN=function(j){
+        as.matrix(sqrt(sum(L[, j] * (V %*% L[, j]))), ncol = 1)
+    }))
+    colnames(SE) <- colnames(beta) <- "logFC"
+    ll$coefficients <- beta
+    ll$stdev.unscaled <- SE/sigma(mod)
+    ll$Amean <- mean(co[,1])
+    ll$sigma <- sigma(mod)
+    ll
 }
 
 
-
-# formats a list of .fit_lmer results into
+# formats a list of .prep_mmFit results into
 # an eBayes compatible list & performs moderation
 #' @importFrom dplyr %>% bind_cols pull
 #' @importFrom limma eBayes
 #' @importFrom magrittr set_colnames
 #' @importFrom purrr map set_names
-.mm_eBayes <- function(fits, coef, trended = TRUE) {
+.mm_eBayes <- function(fits, coef, trended = FALSE) {
     rmv <- vapply(fits, inherits, what = "error", logical(1))
     f <- fits[!rmv]
     if (length(f) > 0) {
-        vars <- set_names(names(f[[1]]))
-        res <- lapply(vars, map, .x = f) %>%
-            map(data.frame) %>% map(t) %>%
-            map(function(u) {if (ncol(u) == 1) c(u) else u})
-        names(res)[1:4] <- c("coefficients", "stdev.unscaled", "z", "PValue")
+        res <- as.data.frame(t(sapply(f, FUN=function(x){ sapply(x, as.numeric) })))
+        saveRDS(res, file="TMP.rds")
         res <- eBayes(res, trend = trended, robust = TRUE)
-        res <- res[c("coefficients", "z", "PValue", "p.value")] %>%
-            set_names(c("beta", "stat", "p_val0", "p_val")) %>%
-            map(as.data.frame) %>% map(pull, coef) %>%
-            data.frame(row.names = names(f))
+        res <- res[,c("coefficients", "stat", "p_val0", "t", "p.value")]
     } else {
         res <- matrix(NA, nrow = 0, ncol = 4) %>% 
-            set_colnames(c("beta", "stat", "p_val0", "p_val")) %>% 
             as.data.frame
     }
     if (any(rmv)) {
         res[names(which(rmv)), "error"] <- 
             vapply(fits[rmv], as.character, character(1))
     }
-    res[names(fits), ]
+    res[names(fits), ] %>% set_colnames(c("beta", "stat", "p_val0", "t", "p_val"))
 }
 
 getPBcolData <- function(sce){
@@ -467,3 +437,4 @@ getPBcolData <- function(sce){
     pb$sample_id <- NULL
     pb
 }
+
