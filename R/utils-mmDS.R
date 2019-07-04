@@ -294,7 +294,7 @@
     }
     
     # compute pseudobulk sum-counts
-    pb <- aggregateData(x, verbose = verbose)
+    pb <- aggregateData(x)
     pb_cd <- as.data.frame(colData(pb))
     
     # get sample-level formula
