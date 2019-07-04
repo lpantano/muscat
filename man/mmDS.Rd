@@ -12,7 +12,8 @@ mmDS(x, coef = NULL, covs = NULL, method = c("dream", "vst",
   ...)
 
 .mm_dream(x, coef, covs, n_threads, verbose, dup_corr = FALSE,
-  trended = FALSE, ddf = c("Satterthwaite", "Kenward-Roger"))
+  trended = FALSE, REML = TRUE, ddf = c("Satterthwaite",
+  "Kenward-Roger"))
 
 .mm_vst(x, coef, covs, n_threads, verbose, vst = c("sctransform",
   "DESeq2"), bayesian = FALSE, blind = TRUE, REML = TRUE,
@@ -59,6 +60,8 @@ on progress and a progress bar should be displayed.}
 \item{trended}{logical; whether to use expression-dependent variance priors
 in \code{\link[limma]{eBayes}}.}
 
+\item{REML}{logical; whether to maximize REML instead of log-likelihood.}
+
 \item{ddf}{character string specifying the method for estimating
 the effective degrees of freedom. For \code{method = "dream"},
 either \code{"Satterthwaite"} (faster) or \code{"Kenward-Roger"}
@@ -73,8 +76,6 @@ see \code{\link[lmerTest]{contest.lmerModLmerTest}}.}
 \item{bayesian}{logical; whether to use bayesian mixed models.}
 
 \item{blind}{logical; whether to ignore experimental design for the vst.}
-
-\item{REML}{logical; whether to maximize REML instead of log-likelihood.}
 }
 \value{
 a data.frame

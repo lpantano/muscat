@@ -44,7 +44,7 @@
 #' @importFrom variancePartition dream getContrast
 .mm_dream <- function(x,
     coef, covs, n_threads, verbose,
-    dup_corr = FALSE, trended = FALSE,
+    dup_corr = FALSE, trended = FALSE, REML=TRUE,
     ddf = c("Satterthwaite", "Kenward-Roger")) {
     
     if (is.null(sizeFactors(x)))
@@ -81,7 +81,7 @@
     }
 
     contrast <- getContrast(v, as.formula(formula), cd, coef)
-    fit <- dream(v, formula, cd, contrast, ddf = ddf, suppressWarnings = !verbose)
+    fit <- dream(v, formula, cd, contrast, ddf=ddf, suppressWarnings=!verbose, REML=REML)
     fit <- eBayes(fit, trend = trended, robust = TRUE)
     if (n_threads > 1) stopCluster(cl)
 
