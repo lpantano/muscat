@@ -44,8 +44,9 @@
 #' @importFrom variancePartition dream getContrast
 .mm_dream <- function(x,
     coef, covs, n_threads, verbose,
-    dup_corr = FALSE, trended = FALSE, REML=TRUE,
+    dup_corr = FALSE, trended = FALSE, REML=FALSE,
     ddf = c("Satterthwaite", "Kenward-Roger")) {
+    if(ddf=="Kenward-Roger" && !REML) stop("Kenward-Roger approximation requires `REML=TRUE`")
     
     if (is.null(sizeFactors(x)))
         x <- computeSumFactors(x)
@@ -113,12 +114,13 @@
 .mm_vst <- function(x,
     coef, covs, n_threads, verbose,
     vst = c("sctransform", "DESeq2"),
-    bayesian = FALSE, blind = TRUE, REML = TRUE,
+    bayesian = FALSE, blind = TRUE, REML = FALSE,
     ddf = c("Satterthwaite", "Kenward-Roger", "lme4")) {
 
     vst <- match.arg(vst)
     ddf <- match.arg(ddf)
     cd <- .prep_cd(x, covs)
+    if(ddf=="Kenward-Roger" && !REML) stop("Kenward-Roger approximation requires `REML=TRUE`")
 
     # variance-stabilizing transformation
     fun_call <- switch(vst,

@@ -12,11 +12,11 @@ mmDS(x, coef = NULL, covs = NULL, method = c("dream", "vst",
   ...)
 
 .mm_dream(x, coef, covs, n_threads, verbose, dup_corr = FALSE,
-  trended = FALSE, REML = TRUE, ddf = c("Satterthwaite",
+  trended = FALSE, REML = FALSE, ddf = c("Satterthwaite",
   "Kenward-Roger"))
 
 .mm_vst(x, coef, covs, n_threads, verbose, vst = c("sctransform",
-  "DESeq2"), bayesian = FALSE, blind = TRUE, REML = TRUE,
+  "DESeq2"), bayesian = FALSE, blind = TRUE, REML = FALSE,
   ddf = c("Satterthwaite", "Kenward-Roger", "lme4"))
 }
 \arguments{
