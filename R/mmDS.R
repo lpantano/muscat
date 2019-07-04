@@ -65,7 +65,7 @@ mmDS <- function(x, coef = NULL, covs = NULL,
     n_threads = 8, verbose = TRUE, 
     dup_corr = FALSE, trended = FALSE,
     vst = c("sctransform", "DESeq2"), 
-    bayesian = FALSE, blind = TRUE, REML = TRUE,
+    bayesian = FALSE, blind = TRUE, REML = FALSE,
     ddf = c("Satterthwaite", "Kenward-Roger", "lme4")) {
     
     .check_sce(x, req_group = TRUE)
