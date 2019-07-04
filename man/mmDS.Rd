@@ -13,14 +13,13 @@ mmDS(x, coef = NULL, covs = NULL, method = c("dream", "vst",
   "DESeq2"), bayesian = FALSE, blind = TRUE, REML = TRUE,
   ddf = c("Satterthwaite", "Kenward-Roger", "lme4"))
 
-.mm_dream(x, coef = NULL, covs = NULL, dup_corr = FALSE,
-  trended = FALSE, ddf = c("Satterthwaite", "Kenward-Roger"),
-  n_threads = 1, verbose = FALSE)
+.mm_dream(x, coef, covs, n_threads, verbose, dup_corr = FALSE,
+  trended = FALSE, REML = FALSE, ddf = c("Satterthwaite",
+  "Kenward-Roger"))
 
-.mm_vst(x, vst = c("sctransform", "DESeq2"), coef = NULL,
-  covs = NULL, bayesian = FALSE, blind = TRUE, REML = TRUE,
-  ddf = c("Satterthwaite", "Kenward-Roger", "lme4"), n_threads = 1,
-  verbose = FALSE)
+.mm_vst(x, coef, covs, n_threads, verbose, vst = c("sctransform",
+  "DESeq2"), bayesian = FALSE, blind = TRUE, REML = FALSE,
+  ddf = c("Satterthwaite", "Kenward-Roger", "lme4"))
 }
 \arguments{
 \item{x}{a \code{\link[SingleCellExperiment]{SingleCellExperiment}}.}
