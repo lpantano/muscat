@@ -25,8 +25,6 @@
 #'   \code{levels(x$cluster_id)} as names. 
 #'   Defaults to factor of 1 for all clusters.
 #'   
-#'   
-#' 
 #' @return a \code{\link[SingleCellExperiment]{SingleCellExperiment}}
 #'   containing multiple clusters & samples across 2 groups.
 #' 
@@ -49,7 +47,7 @@
 #' 
 #' @export
 
-simData <- function(x, n_genes = 500, n_cells = 300, 
+simData <- function(x, n_genes = nrow(x), n_cells = 300, 
     probs = NULL, p_dd = diag(6)[1, ], p_type = 0,
     lfc = 2, rel_lfc = NULL) {
     
@@ -144,10 +142,9 @@ simData <- function(x, n_genes = 500, n_cells = 300,
         cn <- paste("beta", s, sep = ".")
         k <- grep(cn, names(rowData(x)))
         b <- exp(rowData(x)[[k]])
-        vapply(o, "*", b, FUN.VALUE = numeric(nrow(x))) %>% 
-            set_rownames(rownames(x)) %>% 
-            set_colnames(colnames(x)) %>% 
-            round
+        m <- vapply(o, "*", b, FUN.VALUE = numeric(nrow(x)))
+        dimnames(m) <- dimnames(x)
+        return(m)
     })
     d <- rowData(x)$dispersion %>% 
         set_names(rownames(x))

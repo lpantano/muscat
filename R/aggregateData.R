@@ -64,7 +64,9 @@ aggregateData <- function(x,
     # nb. of cells that went into aggregation
     md <- metadata(x)
     md$agg_pars <- list(assay = assay, fun = fun, scale = scale)
-    md$n_cells <- table(as.data.frame(colData(x)[, by]))
+    ncs <- table(as.data.frame(colData(x)[, by]))
+    names(attributes(ncs)$dimnames) <- by
+    md$n_cells <- ncs
     
     # get aggregation function
     fun <- switch(match.arg(fun),
@@ -92,19 +94,18 @@ aggregateData <- function(x,
     # propagate colData columns that are unique across 2nd 'by'
     cd <- colData(x)
     ids <- colnames(pb)
+    last_by <- by[length(by)]
     counts <- vapply(ids, function(u) {
-        m <- as.logical(match(cd[, by[2]], u, nomatch = 0))
+        m <- as.logical(match(cd[, last_by], u, nomatch = 0))
         vapply(cd[m, ], function(u) length(unique(u)), numeric(1))
     }, numeric(ncol(colData(x))))
     cd_keep <- apply(counts, 1, function(u) all(u == 1))
     cd_keep <- setdiff(names(which(cd_keep)), by)
     if (length(cd_keep) != 0) {
-        m <- match(ids, cd[, by[2]], nomatch = 0)
+        m <- match(ids, cd[, last_by], nomatch = 0)
         cd <- cd[m, cd_keep, drop = FALSE]
         rownames(cd) <- ids
         colData(pb) <- cd
-    } else {
-        colData(pb) <- DataFrame()
     }
     return(pb)
 }

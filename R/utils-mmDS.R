@@ -271,7 +271,9 @@
     }
     
     # pseudo-bulk analysis:
-    res <- pbDS(pb, mm, coef = which(colnames(mm) == coef), method = "edgeR")
+    res <- pbDS(pb, mm, 
+        coef = which(colnames(mm) == coef), 
+        method = "edgeR", verbose = FALSE)
     res <- res$table[[1]][[1]]
     cols_keep <- setdiff(colnames(res), c("F", "p_adj.loc", "coef", "p_adj.glb"))
     res <- rename(res[, cols_keep], pb.p_val = "p_val")
@@ -354,16 +356,21 @@
 }
 
 # prepares a model fit for eBayes moderation
+#' @importFrom glmmTMB sigma
+#' @importFrom lmerTest contest
+#' @importFrom pbkrtest vcovAdj.lmerMod
+#' @importFrom stats coef df.residual vcov
 .prep_mmFit <- function(mod, coef, ddf=NULL){
-    if(is(mod, "glmmTMB")){
+    if (is(mod, "glmmTMB")) {
         co <- coef(mod)[[1]][[1]]
-    }else{
+    } else {
         co <- coef(mod)[[1]]
     }
-    beta <- as.matrix(co[1,coef])
+    beta <- as.matrix(co[1, coef])
     
-    L <- matrix(as.numeric(colnames(co)==coef), ncol=1)
-    row.names(L) <- colnames(co)
+    L <- as.numeric(colnames(co) == coef)
+    L <- matrix(L, ncol = 1)
+    rownames(L) <- colnames(co)
     
     # lmer method and SE modified from variancePartition:::.eval_lmm  
     if (is(mod, "lmerModLmerTest")) {
@@ -374,14 +381,15 @@
             p_val0 = test[, "Pr(>F)"])
     } else {
         test <- coef(summary(mod))
-        if(is(mod, "glmmTMB")) test <- test[[1]]
+        if (is(mod, "glmmTMB")) 
+            test <- test[[1]]
         ll <- list(
             df.residual = df.residual(mod),
             stat = as.matrix(test[coef, "z value"]), 
             p_val0 = test[coef, "Pr(>|z|)"])
     }
     if (is(mod, "lmerModLmerTest") && ddf == "Kenward-Roger") {
-        V <- pbkrtest::vcovAdj.lmerMod(mod, 0)
+        V <- vcovAdj.lmerMod(mod, 0)
     } else {
         V <- vcov(mod)
     }
@@ -405,16 +413,16 @@
     rmv <- vapply(fits, inherits, what = "error", logical(1))
     f <- fits[!rmv]
     if (length(f) > 0) {
-        res <- as.data.frame(t(sapply(f, function(x) sapply(x, as.numeric))))
-        saveRDS(res, file="TMP.rds")
+        res <- sapply(f, function(x) sapply(x, as.numeric))
+        res <- as.data.frame(t(res))
         res <- eBayes(res, trend = trended, robust = TRUE)
         res <- res[, c("coefficients", "stat", "p_val0", "t", "p.value")]
     } else {
         res <- as.data.frame(matrix(NA, nrow = 0, ncol = 4))
     }
     if (any(rmv)) {
-        res[names(which(rmv)), "error"] <- 
-            vapply(fits[rmv], as.character, character(1))
+        err <- vapply(fits[rmv], as.character, character(1))
+        res[names(which(rmv)), "error"] <- err
     }
     res <- res[names(fits), ]
     colnames(res) <- c("beta", "stat", "p_val0", "t", "p_val")
