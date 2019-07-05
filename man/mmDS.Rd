@@ -10,7 +10,7 @@ mmDS(x, coef = NULL, covs = NULL, method = c("dream", "vst",
   "poisson", "nbinom", "hybrid"), n_cells = 10, n_samples = 2,
   min_count = 1, min_cells = 20, n_threads = 8, verbose = TRUE,
   dup_corr = FALSE, trended = FALSE, vst = c("sctransform",
-  "DESeq2"), bayesian = FALSE, blind = TRUE, REML = TRUE,
+  "DESeq2"), bayesian = FALSE, blind = TRUE, REML = FALSE,
   ddf = c("Satterthwaite", "Kenward-Roger", "lme4"))
 
 .mm_dream(x, coef, covs, n_threads, verbose, dup_corr = FALSE,
