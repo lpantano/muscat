@@ -26,14 +26,20 @@ test_that("aggregation across 2 factors", {
         expect_identical(rownames(pb), rownames(sce))
         expect_identical(colnames(pb), levels(sids))
         
-        expect_identical(as.numeric(table(sids)), pb$n_cells)
+        expect_identical(
+            metadata(pb)$n_cells,
+            table(cluster_id = kids, sample_id = sids))
         
         # random spot check
-        k <- sample(levels(kids), 1)
-        s <- sample(levels(sids), 1)
-        g <- sample(rownames(sce), 1)
-        i <- sids == s & kids == k
-        expect_equal(assays(pb)[[k]][g, s], get(fun)(assay(sce)[g, i]))
+        replicate(10, {
+            k <- sample(levels(kids), 1)
+            s <- sample(levels(sids), 1)
+            g <- sample(rownames(sce), 1)
+            i <- sids == s & kids == k
+            expect_equal(
+                assays(pb)[[k]][g, s], 
+                get(fun)(assay(sce)[g, i]))  
+        })
     }
 })
 
@@ -48,12 +54,18 @@ test_that("aggregation across 1 factor", {
         expect_identical(rownames(pb), rownames(sce))
         expect_identical(colnames(pb), levels(kids))
         
-        expect_identical(as.numeric(table(kids)), pb$n_cells)
+        expect_identical(
+            metadata(pb)$n_cells,
+            table(cluster_id = kids))
         
         # random spot check
-        k <- sample(levels(kids), 1)
-        g <- sample(rownames(sce), 1)
-        i <- kids == k
-        expect_equal(assay(pb)[g, k], get(fun)(assay(sce)[g, i]))
+        replicate(10, {
+            k <- sample(levels(kids), 1)
+            g <- sample(rownames(sce), 1)
+            i <- kids == k
+            expect_equal(
+                assay(pb)[g, k], 
+                get(fun)(assay(sce)[g, i]))
+        })
     }
 })
