@@ -133,7 +133,9 @@ mmDS <- function(x, coef = NULL, covs = NULL,
             })
         if (!verbose) vst_call <- parse(text = 
                 sprintf("suppressMessages(%s)", paste(vst_call)))
-        counts(x) <- eval(vst_call)
+        y <- eval(vst_call)
+        x <- x[rownames(y), ]
+        counts(x) <- y
     }
     
     # get method function & construct correct call
