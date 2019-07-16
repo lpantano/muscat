@@ -1,4 +1,4 @@
-cluster_colors <- c(
+.cluster_colors <- c(
     "#DC050C", "#FB8072", "#1965B0", "#7BAFDE", "#882E72",
     "#B17BA6", "#FF7F00", "#FDB462", "#E7298A", "#E78AC3",
     "#33A02C", "#B2DF8A", "#55A1B1", "#8DD3C7", "#A6761D",

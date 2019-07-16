@@ -116,6 +116,65 @@ cats <- factor(cats, levels = cats)
     return(gs_by_k)
 }
 
+.impute_type_genes2 <- function(x, gs_by_k, gs_idx, p_type) {
+    kids <- colnames(gs_by_k)
+    names(kids) <- kids
+    # sample gene classes (type or state) 
+    # for genes of DD categroies EE & EP
+    classes <- factor(c("type", "state"), levels = c("type", "state"))
+    class_by_k <- lapply(kids, function(k) {
+        non_de_gs <- unlist(gs_idx[c("ee", "ep"), k])
+        class <- sample(
+            x = classes, 
+            size = length(non_de_gs), 
+            replace = TRUE, 
+            prob = c(p_type, 1 - p_type))
+        names(class) <- non_de_gs
+        class <- split(class, class)
+        return(class)
+    })
+    # sample type-gene specificities
+    prob <- dnorm(seq_along(kids)[-1], 1)
+    prob <- c(1 - sum(prob), prob)
+    spec_by_k <- lapply(kids, function(k) {
+        type_gs <- class_by_k[[k]]$type
+        spec <- sample(
+            x = seq_along(kids), 
+            size = length(type_gs), 
+            replace = TRUE,
+            prob = prob)
+        names(spec) <- names(type_gs)
+        return(spec)
+    })
+    # impute genes to simulate from for ea. cluster
+    for (k in kids) {
+        type_gs <- names(class_by_k[[k]]$type)
+        for (g in type_gs) {
+            spec <- spec_by_k[[k]][g]
+            ks <- c(k, sample(setdiff(kids, k), spec - 1))
+            gs <- gs_by_k[g, setdiff(kids, ks)]
+            gs <- setdiff(rownames(x), gs)
+            gs_by_k[g, ks] <- sample(gs, spec)
+            return(gs_by_k[g, , drop = FALSE])
+        }
+    }
+
+    tmp <- do.call("rbind", lapply(kids, function(k) {
+        type_gs <- names(class_by_k[[k]]$type)
+        do.call("rbind", lapply(type_gs, function(g) {
+            spec <- spec_by_k[[k]][g]
+            ks <- c(k, sample(setdiff(kids, k), spec - 1))
+            gs <- gs_by_k[g, setdiff(kids, ks)]
+            gs <- setdiff(rownames(x), gs)
+            gs_by_k[g, ks] <- sample(gs, spec)
+            return(gs_by_k[g, , drop = FALSE])
+        }))
+    }))
+    type_gs <- unlist(map(map(class_by_k, "type"), names))
+    gs_by_k[type_gs, ] <- tmp
+    return(gs_by_k)
+}
+
 # ------------------------------------------------------------------------------
 # helper to sample from a NB across a grid 
 # of dispersions ('size') and means ('mu')

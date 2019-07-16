@@ -122,10 +122,11 @@ plotDiffHeatmap <- function(x, y, c = NULL, g = NULL, k = NULL,
     if (normalize) ms <- .z_norm(ms)
     
     # row annotation
+    cols <- .cluster_colors
     if (length(kids) > 1) {
-        if (nk > length(cluster_colors))
-            cluster_colors <- colorRampPalette(cluster_colors)(nk)
-        cols <- setNames(cluster_colors[seq_len(nk)], kids)
+        if (nk > length(cols))
+            cols <- colorRampPalette(cols)(nk)
+        cols <- setNames(cols[seq_len(nk)], kids)
         row_anno <- data.frame(cluster_id = y$cluster_id)
         row_anno <- rowAnnotation(row_anno,
             col = list(cluster_id = cols),

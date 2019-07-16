@@ -31,7 +31,7 @@ pbMDS <- function(x) {
     y <- as(assays(x), "list")
     y <- do.call("cbind", y)
     rmv <- rowSums(y) == 0
-    y <- y[, !rmv]
+    y <- y[!rmv, ]
     d <- suppressMessages(DGEList(y))
     d <- calcNormFactors(d)
     
@@ -43,10 +43,10 @@ pbMDS <- function(x) {
     df <- data.frame(
         MDS1 = mds$x, 
         MDS2 = mds$y, 
-        cluster_id = factor(rep(kids, each = ncol(x))[!rmv], levels = kids),
+        cluster_id = factor(rep(kids, each = ncol(x)), levels = kids),
         group_id = rep(ei$group_id[m], nk))
     
-    cols <- cluster_colors
+    cols <- .cluster_colors
     if (nk > length(cols)) 
         cols <- colorRampPalette(cols)(nk)
     

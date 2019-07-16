@@ -52,7 +52,7 @@ plotMarkerGenes <- function(x, marker_genes,
     }
     row_anno <- Heatmap(
         matrix = row_anno,
-        col = setNames(cluster_colors, levels(kids)),
+        col = setNames(.cluster_colors, levels(kids)),
         name = "cluster_id",
         cluster_rows = FALSE,
         rect_gp = gpar(col = "white"))
