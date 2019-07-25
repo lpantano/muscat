@@ -84,7 +84,7 @@ aggregateData <- function(x,
             pb_sum <- .pb(x, cs, "counts", "rowSums")
         }
         ls <- lapply(pb_sum, colSums)
-        pb <- lapply(seq_along(pb), function(i) pb[[i]] / ls[[i]] * 1e6)
+        pb <- lapply(seq_along(pb), function(i) pb[[i]] / 1e6 * ls[[i]])
         names(pb) <- names(pb_sum)
     }
 
